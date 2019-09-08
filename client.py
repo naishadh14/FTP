@@ -42,7 +42,7 @@ def lls(state):
 
 def rcd(state):
     state.control.send(state.command.encode('ascii'))
-    print(state.control.recv(1024).decode('ascii'))
+    print(state.data.recv(1024).decode('ascii'))
 
 def lcd(state):
     target = state.command[4:]
@@ -54,6 +54,12 @@ def lcd(state):
     except Exception as e:
         print(e)
 
+def rpwd(state):
+    state.control.send(state.command.encode('ascii'))
+    print(state.data.recv(1024).decode('ascii'))
+
+def lpwd(state):
+    print(state.cwd)
 
 if __name__ == '__main__':
     global control_port
@@ -82,6 +88,10 @@ if __name__ == '__main__':
             rcd(state)
         elif(state.command[0:4] == "!cd "):
             lcd(state)
+        elif(state.command == "pwd"):
+            rpwd(state)
+        elif(state.command == "!pwd"):
+            lpwd(state)
         else:
             print("Incorrect command!")
 

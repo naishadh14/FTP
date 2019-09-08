@@ -1,4 +1,6 @@
-ls : Run ls on server
-!ls : Run ls on client
-cd : Navigate on server
-!cd : Navigate on client
+ls: Run ls on server
+!ls: Run ls on client
+cd: Navigate on server
+!cd: Navigate on client
+pwd: Print working directory on server
+!pwd: Print working directory on client 

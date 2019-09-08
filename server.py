@@ -31,9 +31,12 @@ def cd(state):
         os.chdir(target)
         state.cwd = os.getcwd()
         state.folder = target
-        state.control.send('OK'.encode('ascii'))
+        state.data.send('OK'.encode('ascii'))
     except Exception as e:
-        state.control.send(str(e).encode('ascii'))
+        state.data.send(str(e).encode('ascii'))
+
+def pwd(state):
+    state.data.send(state.cwd.encode('ascii'))
 
 def connection(state):
     print("New connection to client {}".format(addr))
@@ -47,6 +50,8 @@ def connection(state):
             ls(state)
         elif(state.command[0:3] == "cd "):
             cd(state)
+        elif(state.command == "pwd"):
+            pwd(state)
 
     state.data.close()
     state.control.close()
