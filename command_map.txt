@@ -1,0 +1,4 @@
+ls : Run ls on server
+!ls : Run ls on client
+cd : Navigate on server
+!cd : Navigate on client
