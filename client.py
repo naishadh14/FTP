@@ -21,7 +21,7 @@ def rls(state):
     dirs = state.data.recv(1024).decode('ascii')
     dirlist = json.loads(dirs)
     for l in dirlist:
-        if '.' in l:
+        if os.path.isfile(l):
             print(l, end='    ')
         else:
             CRED = '\033[91m'
@@ -32,11 +32,28 @@ def rls(state):
 def lls(state):
     dirlist = os.listdir(state.cwd)
     for l in dirlist:
-        print(l, end='    ')
+        if os.path.isfile(l):
+            print(l, end='    ')
+        else:
+            CRED = '\033[91m'
+            CEND = '\033[0m'
+            print(CRED + l + CEND, end='    ')
     print()
 
-def cd(state):
-    pass
+def rcd(state):
+    state.control.send(state.command.encode('ascii'))
+    print(state.control.recv(1024).decode('ascii'))
+
+def lcd(state):
+    target = state.command[4:]
+    try:
+        os.chdir(target)
+        state.cwd = os.getcwd()
+        state.folder = target
+        print('OK')
+    except Exception as e:
+        print(e)
+
 
 if __name__ == '__main__':
     global control_port
@@ -53,17 +70,18 @@ if __name__ == '__main__':
     print('The control port is {} and the data port is {}'.format(control_port, data_port))
 
     while True:
-        command = input('ftp> ')
+        state.command = input('ftp> ')
         #SWITCH BASED ON COMMAND
-        if(command == "bye"):
+        if(state.command == "bye"):
             break
-        elif(command == "ls"):
+        elif(state.command == "ls"):
             rls(state)
-        elif(command == "!ls"):
+        elif(state.command == "!ls"):
             lls(state)
-        elif(command[0:3] == "cd "):
-            state.command = command
-            cd(state)
+        elif(state.command[0:3] == "cd "):
+            rcd(state)
+        elif(state.command[0:4] == "!cd "):
+            lcd(state)
         else:
             print("Incorrect command!")
 
