@@ -4,8 +4,9 @@ from threading import Thread
 import sys
 import os
 import json
+import getpass
 
-global control_port, thread_list
+global control_port
 class State:
     '''
     This class contains the following variables
@@ -38,31 +39,53 @@ def cd(state):
 def pwd(state):
     state.data.send(state.cwd.encode('ascii'))
 
+def get(state):
+    target = state.command[4:]
+    if os.path.isfile(target):
+        try:
+            f = open(target, 'rb')
+            l = f.read(1024)
+            while(l):
+                state.data.send(l)
+                l = f.read(1024)
+        except Exception as e:
+            state.data.send(e.encode('ascii'))
+
+
 def connection(state):
     print("New connection to client {}".format(addr))
     state.control.send(str(state.data_port).encode('ascii'))
     state.data_socket.listen(1)
     state.data, state.data_addr = state.data_socket.accept()
-    while True:
-        state.command = state.control.recv(1024).decode('ascii')
-        #SWITCH BASED ON command
-        if(state.command == "ls"):
-            ls(state)
-        elif(state.command[0:3] == "cd "):
-            cd(state)
-        elif(state.command == "pwd"):
-            pwd(state)
+    state.user_name = getpass.getuser()
+    print('{} Asking for connection'.format(state.user_name))
+    state.control.send(str(state.user_name).encode('ascii'))
+    
+    if(state.user_name == state.control.recv(1024).decode('ascii')):
+
+        while True:
+            state.command = state.control.recv(1024).decode('ascii')
+            #SWITCH BASED ON command
+            if(state.command == "ls"):
+                ls(state)
+            elif(state.command[0:3] == "cd "):
+                cd(state)
+            elif(state.command == "pwd"):
+                pwd(state)
+            elif(state.command[0:4] == "get "):
+                get(state)
 
     state.data.close()
     state.control.close()
 
 if __name__ == '__main__':
-    global control_port, thread_list
+    global control_port
     control_port = int(sys.argv[1])
     control_socket = socket(AF_INET, SOCK_STREAM)
     control_socket.bind(('', control_port))
     control_socket.listen(10)
     count = 1
+    print('Waiting for incoming connections')
 
     while True:
         connectionSocket, addr = control_socket.accept()

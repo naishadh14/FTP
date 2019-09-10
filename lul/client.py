@@ -88,10 +88,7 @@ if __name__ == '__main__':
     dataSocket.connect((serverName, data_port))
     state = State(clientSocket, dataSocket, serverName)
     print('The control port is {} and the data port is {}'.format(control_port, data_port))
-    server_user = state.control.recv(1024).decode('ascii')
-    server_client_user = input('Name ({}:{}):'.format(serverName, server_user))
-    state.control.send(server_client_user.encode('ascii'))
-    
+
     while True:
         state.command = input('ftp> ')
         #SWITCH BASED ON COMMAND
