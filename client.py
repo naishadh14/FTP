@@ -8,13 +8,11 @@ os.system('color')
 global control_port
 
 class State:
-    def __init__(self, clientSocket, dataSocket, serverName, data_port):
+    def __init__(self, client, server):
         self.cwd = os.getcwd()
         self.folder = os.path.basename(self.cwd)
-        self.control = clientSocket
-        self.data = dataSocket
-        self.server = serverName
-        self.data_port = data_port
+        self.control = client
+        self.server = server
 
 
 def rls(state):
@@ -62,11 +60,16 @@ def rpwd(state):
 def lpwd(state):
     print(state.cwd)
 
+def data_connection(state):
+    data_port = int(state.control.recv(1024).decode('ascii'))
+    state.data = socket(AF_INET, SOCK_STREAM)
+    state.data.connect((state.server, data_port))
+
 def get(state):
     state.control.send(state.command.encode('ascii'))
+    data_connection(state)
     target = state.command[4:]
     try:
-        state.data.connect((state.server, state.data_port))
         f = open(target, 'wb+')
         data = state.data.recv(1024)
         while data:
@@ -75,22 +78,22 @@ def get(state):
         print('OK')
     except Exception as e:
         print(e)
+    finally:
+        state.data.close()
 
 
 if __name__ == '__main__':
     global control_port
-    serverName = "127.0.0.1"
-    #serverName = sys.argv[1]
+    server = "127.0.0.1"
+    #server = sys.argv[1]
     control_port = int(sys.argv[1])
     #control_port = int(sys.argv[2])
-    clientSocket = socket(AF_INET, SOCK_STREAM)
-    clientSocket.connect((serverName, control_port))
-    data_port = int(clientSocket.recv(1024).decode('ascii'))
-    dataSocket = socket(AF_INET, SOCK_STREAM)
-    state = State(clientSocket, dataSocket, serverName, data_port)
-    print('The control port is {} and the data port is {}'.format(control_port, data_port))
+
+    client = socket(AF_INET, SOCK_STREAM)
+    client.connect((server, control_port))
+    state = State(client, server)
     server_user = state.control.recv(1024).decode('ascii')
-    server_client_user = input('Name ({}:{}):'.format(serverName, server_user))
+    server_client_user = input('Name ({}:{}):'.format(server, server_user))
     state.control.send(server_client_user.encode('ascii'))
 
     while True:

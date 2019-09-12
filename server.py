@@ -40,12 +40,13 @@ def cd(state):
 def pwd(state):
     state.control.send(state.cwd.encode('ascii'))
 
-def data(state):
+def data_connection(state):
+    state.control.send(str(state.data_port).encode('ascii'))
     state.data_socket.listen(1)
     state.data, state.data_addr = state.data_socket.accept()
 
 def get(state):
-    data(state)
+    data_connection(state)
     target = state.command[4:]
     if os.path.isfile(target):
         try:
@@ -62,7 +63,6 @@ def get(state):
 
 def connection(state):
     print("New connection to client {}".format(addr))
-    state.control.send(str(state.data_port).encode('ascii'))
     state.user_name = getpass.getuser()
     print('{} Asking for connection'.format(state.user_name))
     state.control.send(str(state.user_name).encode('ascii'))
