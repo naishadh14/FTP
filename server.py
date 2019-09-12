@@ -10,7 +10,8 @@ global control_port
 class State:
     '''
     This class contains the following variables
-    Hidden: self.command, self.dirlist, self.data, self.data_addr
+    Hidden: self.command, self.dirlist, self.data, self.data_addr,
+            self.user_name
     '''
     def __init__(self, connectionSocket, addr, count):
         global control_port
@@ -24,7 +25,7 @@ class State:
 
 def ls(state):
     state.dirlist = os.listdir(state.cwd)
-    state.data.send(json.dumps(state.dirlist).encode('ascii'))
+    state.control.send(json.dumps(state.dirlist).encode('ascii'))
 
 def cd(state):
     target = state.command[3:]
@@ -32,35 +33,40 @@ def cd(state):
         os.chdir(target)
         state.cwd = os.getcwd()
         state.folder = target
-        state.data.send('OK'.encode('ascii'))
+        state.control.send('OK'.encode('ascii'))
     except Exception as e:
-        state.data.send(str(e).encode('ascii'))
+        state.control.send(str(e).encode('ascii'))
 
 def pwd(state):
-    state.data.send(state.cwd.encode('ascii'))
+    state.control.send(state.cwd.encode('ascii'))
+
+def data(state):
+    state.data_socket.listen(1)
+    state.data, state.data_addr = state.data_socket.accept()
 
 def get(state):
+    data(state)
     target = state.command[4:]
     if os.path.isfile(target):
         try:
-            f = open(target, 'rb')
+            f = open(target, 'rb+')
             l = f.read(1024)
             while(l):
                 state.data.send(l)
                 l = f.read(1024)
         except Exception as e:
+            print(e)
             state.data.send(e.encode('ascii'))
-
+        finally:
+            state.data.close()
 
 def connection(state):
     print("New connection to client {}".format(addr))
     state.control.send(str(state.data_port).encode('ascii'))
-    state.data_socket.listen(1)
-    state.data, state.data_addr = state.data_socket.accept()
     state.user_name = getpass.getuser()
     print('{} Asking for connection'.format(state.user_name))
     state.control.send(str(state.user_name).encode('ascii'))
-    
+
     if(state.user_name == state.control.recv(1024).decode('ascii')):
 
         while True:
@@ -75,7 +81,6 @@ def connection(state):
             elif(state.command[0:4] == "get "):
                 get(state)
 
-    state.data.close()
     state.control.close()
 
 if __name__ == '__main__':

@@ -8,17 +8,18 @@ os.system('color')
 global control_port
 
 class State:
-    def __init__(self, clientSocket, dataSocket, serverName):
+    def __init__(self, clientSocket, dataSocket, serverName, data_port):
         self.cwd = os.getcwd()
         self.folder = os.path.basename(self.cwd)
         self.control = clientSocket
         self.data = dataSocket
         self.server = serverName
+        self.data_port = data_port
 
 
 def rls(state):
     state.control.send("ls".encode('ascii'))
-    dirs = state.data.recv(1024).decode('ascii')
+    dirs = state.control.recv(1024).decode('ascii')
     dirlist = json.loads(dirs)
     for l in dirlist:
         if os.path.isfile(l):
@@ -42,7 +43,7 @@ def lls(state):
 
 def rcd(state):
     state.control.send(state.command.encode('ascii'))
-    print(state.data.recv(1024).decode('ascii'))
+    print(state.control.recv(1024).decode('ascii'))
 
 def lcd(state):
     target = state.command[4:]
@@ -56,7 +57,7 @@ def lcd(state):
 
 def rpwd(state):
     state.control.send(state.command.encode('ascii'))
-    print(state.data.recv(1024).decode('ascii'))
+    print(state.control.recv(1024).decode('ascii'))
 
 def lpwd(state):
     print(state.cwd)
@@ -65,12 +66,13 @@ def get(state):
     state.control.send(state.command.encode('ascii'))
     target = state.command[4:]
     try:
-        f = open(target, 'wb')
-        while True:
-            data = state.data.recv(1024)
-            if not data:
-                break
+        state.data.connect((state.server, state.data_port))
+        f = open(target, 'wb+')
+        data = state.data.recv(1024)
+        while data:
             f.write(data)
+            data = state.data.recv(1024)
+        print('OK')
     except Exception as e:
         print(e)
 
@@ -85,13 +87,12 @@ if __name__ == '__main__':
     clientSocket.connect((serverName, control_port))
     data_port = int(clientSocket.recv(1024).decode('ascii'))
     dataSocket = socket(AF_INET, SOCK_STREAM)
-    dataSocket.connect((serverName, data_port))
-    state = State(clientSocket, dataSocket, serverName)
+    state = State(clientSocket, dataSocket, serverName, data_port)
     print('The control port is {} and the data port is {}'.format(control_port, data_port))
     server_user = state.control.recv(1024).decode('ascii')
     server_client_user = input('Name ({}:{}):'.format(serverName, server_user))
     state.control.send(server_client_user.encode('ascii'))
-    
+
     while True:
         state.command = input('ftp> ')
         #SWITCH BASED ON COMMAND
