@@ -3,6 +3,7 @@ from socket import *
 from threading import Thread
 import sys
 import os
+import shutil
 import json
 import getpass
 
@@ -34,7 +35,6 @@ def ls(state):
             d[entry.name] = "f"
     state.control.send(json.dumps(d).encode('ascii'))
 
-
 def cd(state):
     target = state.command[3:]
     try:
@@ -64,21 +64,41 @@ def get(state):
                 state.data.send(l)
                 l = f.read(1024)
         except Exception as e:
-            state.data.send(e.encode('ascii'))
+            state.data.send(str(e).encode('ascii'))
         finally:
             state.data.close()
     elif os.path.isdir(target):
         pass
 
+def put(state):
+    pass
+
+def mkdir(state):
+    target = state.command[5:]
+    try:
+        os.mkdir(target)
+        state.control.send('OK'.encode('ascii'))
+    except Exception as e:
+        state.control.send(str(e).encode('ascii'))
+
+def rm(state):
+    target = state.command[3:]
+    try:
+        if os.path.isfile(target):
+            os.remove(target)
+            state.control.send('OK'.encode('ascii'))
+        else:
+            shutil.rmtree(target)
+            state.control.send('OK'.encode('ascii'))
+    except Exception as e:
+        state.control.send(str(e).encode('ascii'))
 
 def connection(state):
     print("New connection to client {}".format(addr))
     state.user_name = getpass.getuser()
-    print('{} Asking for connection'.format(state.user_name))
     state.control.send(str(state.user_name).encode('ascii'))
 
     if(state.user_name == state.control.recv(1024).decode('ascii')):
-
         while True:
             state.command = state.control.recv(1024).decode('ascii')
             #SWITCH BASED ON command
@@ -90,6 +110,10 @@ def connection(state):
                 pwd(state)
             elif(state.command[0:4] == "get "):
                 get(state)
+            elif(state.command[0:6] == "mkdir "):
+                mkdir(state)
+            elif(state.command[0:3] == "rm "):
+                rm(state)
 
     state.control.close()
 
@@ -100,7 +124,6 @@ if __name__ == '__main__':
     control_socket.bind(('', control_port))
     control_socket.listen(10)
     count = 1
-    print('Waiting for incoming connections')
 
     while True:
         connectionSocket, addr = control_socket.accept()

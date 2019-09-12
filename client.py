@@ -2,8 +2,11 @@
 from socket import *
 import sys
 import os
+import shutil
 import json
-os.system('color')
+
+if os.name == 'nt':
+    os.system('color')
 
 global control_port
 
@@ -81,6 +84,34 @@ def get(state):
     finally:
         state.data.close()
 
+def rmkdir(state):
+    state.control.send(state.command.encode('ascii'))
+    print(state.control.recv(1024).decode('ascii'))
+
+def lmkdir(state):
+    target = state.command[6:]
+    try:
+        os.mkdir(target)
+        print('OK')
+    except Exception as e:
+        print(e)
+
+def rrm(state):
+    state.control.send(state.command.encode('ascii'))
+    print(state.control.recv(1024).decode('ascii'))
+
+def lrm(state):
+    target = state.command[4:]
+    try:
+        if os.path.isfile(target):
+            os.remove(target)
+            print('OK')
+        else:
+            shutil.rmtree(target)
+            print('OK')
+    except Exception as e:
+        print(e)
+
 
 if __name__ == '__main__':
     global control_port
@@ -117,6 +148,14 @@ if __name__ == '__main__':
             get(state)
         elif(state.command[0:4] == "put "):
             put(state)
+        elif(state.command[0:6] == "mkdir "):
+            rmkdir(state)
+        elif(state.command[0:7] == "!mkdir "):
+            lmkdir(state)
+        elif(state.command[0:3] == "rm "):
+            rrm(state)
+        elif(state.command[0:4] == "!rm "):
+            lrm(state)
         else:
             print("Incorrect command!")
 

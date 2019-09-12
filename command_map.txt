@@ -5,3 +5,7 @@ cd: Navigate on server
 pwd: Print working directory on server
 !pwd: Print working directory on client
 get: Transfer file from server to client
+mkdir: Create a directory on server
+!mkdir: Create a directory on client
+rm: Remove a file on server
+!rm: Remove a file on client
