@@ -74,7 +74,7 @@ def put(state):
     pass
 
 def mkdir(state):
-    target = state.command[5:]
+    target = state.command[6:]
     try:
         os.mkdir(target)
         state.control.send('OK'.encode('ascii'))

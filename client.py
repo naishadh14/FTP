@@ -89,7 +89,7 @@ def rmkdir(state):
     print(state.control.recv(1024).decode('ascii'))
 
 def lmkdir(state):
-    target = state.command[6:]
+    target = state.command[7:]
     try:
         os.mkdir(target)
         print('OK')
