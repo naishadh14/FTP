@@ -17,15 +17,15 @@ class State:
 
 def rls(state):
     state.control.send("ls".encode('ascii'))
-    dirs = state.control.recv(1024).decode('ascii')
-    dirlist = json.loads(dirs)
-    for l in dirlist:
-        if os.path.isfile(l):
-            print(l, end='    ')
+    dir = state.control.recv(1024).decode('ascii')
+    dirlist = json.loads(dir)
+    for key, value in dirlist.items():
+        if value == 'f':
+            print(key, end='    ')
         else:
             CRED = '\033[91m'
             CEND = '\033[0m'
-            print(CRED + l + CEND, end='    ')
+            print(CRED + key + CEND, end='    ')
     print()
 
 def lls(state):
@@ -115,6 +115,8 @@ if __name__ == '__main__':
             lpwd(state)
         elif(state.command[0:4] == "get "):
             get(state)
+        elif(state.command[0:4] == "put "):
+            put(state)
         else:
             print("Incorrect command!")
 

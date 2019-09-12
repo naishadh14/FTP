@@ -3,4 +3,5 @@ ls: Run ls on server
 cd: Navigate on server
 !cd: Navigate on client
 pwd: Print working directory on server
-!pwd: Print working directory on client 
+!pwd: Print working directory on client
+get: Transfer file from server to client

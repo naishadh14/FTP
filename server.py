@@ -23,9 +23,17 @@ class State:
         self.data_socket = socket(AF_INET, SOCK_STREAM)
         self.data_socket.bind(('', self.data_port))
 
+
 def ls(state):
-    state.dirlist = os.listdir(state.cwd)
-    state.control.send(json.dumps(state.dirlist).encode('ascii'))
+    d = {}
+    dirlist = os.scandir()
+    for entry in dirlist:
+        if entry.is_dir():
+            d[entry.name] = "d"
+        else:
+            d[entry.name] = "f"
+    state.control.send(json.dumps(d).encode('ascii'))
+
 
 def cd(state):
     target = state.command[3:]
@@ -56,10 +64,12 @@ def get(state):
                 state.data.send(l)
                 l = f.read(1024)
         except Exception as e:
-            print(e)
             state.data.send(e.encode('ascii'))
         finally:
             state.data.close()
+    elif os.path.isdir(target):
+        pass
+
 
 def connection(state):
     print("New connection to client {}".format(addr))
