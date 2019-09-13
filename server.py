@@ -54,21 +54,43 @@ def data_connection(state):
     state.data, state.data_addr = state.data_socket.accept()
 
 def get(state):
-    data_connection(state)
     target = state.command[4:]
     if os.path.isfile(target):
-        try:
-            f = open(target, 'rb+')
-            l = f.read(1024)
-            while(l):
-                state.data.send(l)
-                l = f.read(1024)
-        except Exception as e:
-            state.data.send(str(e).encode('ascii'))
-        finally:
-            state.data.close()
+        state.control.send("file".encode('ascii'))
+        get_file(state, target)
     elif os.path.isdir(target):
-        pass
+        state.control.send("dir".encode('ascii'))
+        get_dir(state, target)
+
+def get_dir(state, target):
+    try:
+        cwd = os.getcwd()
+        os.chdir(target)
+        dirs = os.listdir()
+        state.control.send(json.dumps(dirs).encode('ascii'))
+        for entry in dirs:
+            if os.path.isfile(entry):
+                get_file(state, entry)
+            else:
+                get_dir(state, entry)
+    except Exception as e:
+        print(e)
+        state.control.send(str(e).encode('ascii'))
+    finally:
+        os.chdir(cwd)
+
+def get_file(state, target):
+    try:
+        data_connection(state)
+        f = open(target, 'rb+')
+        l = f.read(1024)
+        while(l):
+            state.data.send(l)
+            l = f.read(1024)
+    except Exception as e:
+        state.data.send(str(e).encode('ascii'))
+    finally:
+        state.data.close()
 
 def put(state):
     pass
@@ -93,6 +115,9 @@ def rm(state):
     except Exception as e:
         state.control.send(str(e).encode('ascii'))
 
+def system(state):
+    state.control.send(str(sys.platform).encode('ascii'))
+
 def connection(state):
     print("New connection to client {}".format(addr))
     state.user_name = getpass.getuser()
@@ -114,6 +139,8 @@ def connection(state):
                 mkdir(state)
             elif(state.command[0:3] == "rm "):
                 rm(state)
+            elif(state.command == "sys"):
+                system(state)
 
     state.control.close()
 

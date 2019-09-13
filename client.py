@@ -23,23 +23,39 @@ def rls(state):
     dir = state.control.recv(1024).decode('ascii')
     dirlist = json.loads(dir)
     for key, value in dirlist.items():
-        if value == 'f':
-            print(key, end='    ')
+        if ' ' not in key:
+            if value == 'f':
+                print(key, end='    ')
+            else:
+                CRED = '\033[91m'
+                CEND = '\033[0m'
+                print(CRED + key + CEND, end='    ')
         else:
-            CRED = '\033[91m'
-            CEND = '\033[0m'
-            print(CRED + key + CEND, end='    ')
+            if value == 'f':
+                print('\'' + key + '\'', end='    ')
+            else:
+                CRED = '\033[91m'
+                CEND = '\033[0m'
+                print(CRED + '\'' + key + '\'' + CEND, end='    ')
     print()
 
 def lls(state):
     dirlist = os.listdir(state.cwd)
     for l in dirlist:
-        if os.path.isfile(l):
-            print(l, end='    ')
+        if ' ' not in l:
+            if os.path.isfile(l):
+                print(l, end='    ')
+            else:
+                CRED = '\033[91m'
+                CEND = '\033[0m'
+                print(CRED + l + CEND, end='    ')
         else:
-            CRED = '\033[91m'
-            CEND = '\033[0m'
-            print(CRED + l + CEND, end='    ')
+            if os.path.isfile(l):
+                print('\'' + l + '\'', end='    ')
+            else:
+                CRED = '\033[91m'
+                CEND = '\033[0m'
+                print(CRED + '\'' + l + '\'' + CEND, end='    ')
     print()
 
 def rcd(state):
@@ -70,9 +86,16 @@ def data_connection(state):
 
 def get(state):
     state.control.send(state.command.encode('ascii'))
-    data_connection(state)
     target = state.command[4:]
+    type = state.control.recv(1024).decode('ascii')
+    if(type == 'file'):
+        get_file(state, target)
+    else:
+        get_dir(state, target)
+
+def get_file(state, target):
     try:
+        data_connection(state)
         f = open(target, 'wb+')
         data = state.data.recv(1024)
         while data:
@@ -83,6 +106,20 @@ def get(state):
         print(e)
     finally:
         state.data.close()
+
+def get_dir(state, target):
+    try:
+        cwd = os.getcwd()
+        os.mkdir(target)
+        os.chdir(target)
+        dir = state.control.recv(1024).decode('ascii')
+        dirs = json.loads(dir)
+        for path in dirs:
+            get_file(state, path)
+    except Exception as e:
+        print(e)
+    finally:
+        os.chdir(cwd)
 
 def rmkdir(state):
     state.control.send(state.command.encode('ascii'))
@@ -112,6 +149,12 @@ def lrm(state):
     except Exception as e:
         print(e)
 
+def rsystem(state):
+    state.control.send(state.command.encode('ascii'))
+    print(state.control.recv(1024).decode('ascii'))
+
+def lsystem(state):
+    print(sys.platform)
 
 if __name__ == '__main__':
     global control_port
@@ -156,6 +199,10 @@ if __name__ == '__main__':
             rrm(state)
         elif(state.command[0:4] == "!rm "):
             lrm(state)
+        elif(state.command == "sys"):
+            rsystem(state)
+        elif(state.command == "!sys"):
+            lsystem(state)
         else:
             print("Incorrect command!")
 
