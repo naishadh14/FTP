@@ -113,9 +113,14 @@ def get_dir(state, target):
         os.mkdir(target)
         os.chdir(target)
         dir = state.control.recv(1024).decode('ascii')
-        dirs = json.loads(dir)
-        for path in dirs:
-            get_file(state, path)
+        d = json.loads(dir)
+        print(str(d))
+        for key, value in d.items():
+            print('Attempting to receive ' + key + ' of type ' + value)
+            if value == 'f':
+                get_file(state, key)
+            else:
+                get_dir(state, key)
     except Exception as e:
         print(e)
     finally:

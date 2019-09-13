@@ -7,5 +7,8 @@ pwd: Print working directory on server
 get: Transfer file from server to client
 mkdir: Create a directory on server
 !mkdir: Create a directory on client
-rm: Remove a file on server
-!rm: Remove a file on client
+rm: Remove a file or directory on server
+!rm: Remove a file or directory on client
+sys: Print system running on server
+!sys: Print system running on client
+

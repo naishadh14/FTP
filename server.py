@@ -66,13 +66,21 @@ def get_dir(state, target):
     try:
         cwd = os.getcwd()
         os.chdir(target)
-        dirs = os.listdir()
-        state.control.send(json.dumps(dirs).encode('ascii'))
-        for entry in dirs:
-            if os.path.isfile(entry):
-                get_file(state, entry)
+        d = {}
+        dirlist = os.scandir()
+        for entry in dirlist:
+            if entry.is_dir():
+                d[entry.name] = "d"
             else:
-                get_dir(state, entry)
+                d[entry.name] = "f"
+        print(str(d))
+        state.control.send(json.dumps(d).encode('ascii'))
+        for key, value in d.items():
+            print('Attempting to transfer ' + key + ' of type ' + value)
+            if value == 'f':
+                get_file(state, key)
+            else:
+                get_dir(state, key)
     except Exception as e:
         print(e)
         state.control.send(str(e).encode('ascii'))
