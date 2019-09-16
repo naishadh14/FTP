@@ -6,6 +6,12 @@ import os
 import shutil
 import json
 import getpass
+global pam_import
+try:
+    import pam
+    pam_import = 0
+except ImportError:
+    pam_import = 1
 
 global control_port
 class State:
@@ -126,29 +132,47 @@ def rm(state):
 def system(state):
     state.control.send(str(sys.platform).encode('ascii'))
 
+def user(state):
+    authenticate_user(state, 1)
+
+def authenticate_user(state, control_code):
+    state.user_name = getpass.getuser()
+    if control_code == 'new':
+        state.control.send(str(state.user_name).encode('ascii'))
+    user_name = state.control.recv(1024).decode('ascii')
+    user_pass = state.control.recv(1024).decode('ascii')
+    result = 'pass'
+    if pam.authenticate(user_name, user_pass):
+        state.control.send(str(result).encode('ascii'))
+    else:
+        result = 'fail'
+        state.control.send(str(result).encode('ascii'))
+
 def connection(state):
     print("New connection to client {}".format(addr))
-    state.user_name = getpass.getuser()
-    state.control.send(str(state.user_name).encode('ascii'))
+    state.control.send(str(pam_import).encode('ascii'))
+    if pam_import == 0:
+    	authenticate_user(state, 'new')
 
-    if(state.user_name == state.control.recv(1024).decode('ascii')):
-        while True:
-            state.command = state.control.recv(1024).decode('ascii')
-            #SWITCH BASED ON command
-            if(state.command == "ls"):
-                ls(state)
-            elif(state.command[0:3] == "cd "):
-                cd(state)
-            elif(state.command == "pwd"):
-                pwd(state)
-            elif(state.command[0:4] == "get "):
-                get(state)
-            elif(state.command[0:6] == "mkdir "):
-                mkdir(state)
-            elif(state.command[0:3] == "rm "):
-                rm(state)
-            elif(state.command == "sys"):
-                system(state)
+    while True:
+        state.command = state.control.recv(1024).decode('ascii')
+        #SWITCH BASED ON command
+        if(state.command == "ls"):
+            ls(state)
+        elif(state.command[0:3] == "cd "):
+            cd(state)
+        elif(state.command == "pwd"):
+            pwd(state)
+        elif(state.command[0:4] == "get "):
+            get(state)
+        elif(state.command[0:6] == "mkdir "):
+            mkdir(state)
+        elif(state.command[0:3] == "rm "):
+            rm(state)
+        elif(state.command == "sys"):
+            system(state)
+        elif(state.command == "user"):
+            user(state)
 
     state.control.close()
 

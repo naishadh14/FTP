@@ -11,4 +11,4 @@ rm: Remove a file or directory on server
 !rm: Remove a file or directory on client
 sys: Print system running on server
 !sys: Print system running on client
-
+user: Authenticating user (username, and password)

@@ -4,6 +4,7 @@ import sys
 import os
 import shutil
 import json
+import getpass
 
 if os.name == 'nt':
     os.system('color')
@@ -161,6 +162,26 @@ def rsystem(state):
 def lsystem(state):
     print(sys.platform)
 
+def authenticate_user(state, control_code):
+    print('Welcome to FTP')
+    if control_code == 'new':
+        server_user = state.control.recv(1024).decode('ascii')
+        server_client_user = input('Name ({}:{}):'.format(server, server_user))
+    elif control_code == 'again':
+        server_client_user = input('User: ')
+    user_pass = getpass.getpass('Password: ')
+    state.control.send(server_client_user.encode('ascii'))
+    state.control.send(str(user_pass).encode('ascii'))
+    auth_result = state.control.recv(1024).decode('ascii')
+    if auth_result == 'pass':
+        return
+    else:
+        state.command = input('ftp> ')
+        while state.command != 'user':
+            print('No connection')
+            state.command = input('ftp> ')
+        authenticate_user(state, 'again')
+
 if __name__ == '__main__':
     global control_port
     server = "127.0.0.1"
@@ -171,9 +192,9 @@ if __name__ == '__main__':
     client = socket(AF_INET, SOCK_STREAM)
     client.connect((server, control_port))
     state = State(client, server)
-    server_user = state.control.recv(1024).decode('ascii')
-    server_client_user = input('Name ({}:{}):'.format(server, server_user))
-    state.control.send(server_client_user.encode('ascii'))
+    pam_import = state.control.recv(1024).decode('ascii')
+    if pam_import == '0':
+    	authenticate_user(state, 'new')
 
     while True:
         state.command = input('ftp> ')
@@ -210,6 +231,5 @@ if __name__ == '__main__':
             lsystem(state)
         else:
             print("Incorrect command!")
-
 
     state.control.close()
