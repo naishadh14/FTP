@@ -22,23 +22,26 @@ class State:
 def rls(state):
     state.control.send("ls".encode('ascii'))
     dir = state.control.recv(1024).decode('ascii')
-    dirlist = json.loads(dir)
-    for key, value in dirlist.items():
-        if ' ' not in key:
-            if value == 'f':
-                print(key, end='    ')
+    try:
+        dirlist = json.loads(dir)
+        for key, value in dirlist.items():
+            if ' ' not in key:
+                if value == 'f':
+                    print(key, end='    ')
+                else:
+                    CRED = '\033[91m'
+                    CEND = '\033[0m'
+                    print(CRED + key + CEND, end='    ')
             else:
-                CRED = '\033[91m'
-                CEND = '\033[0m'
-                print(CRED + key + CEND, end='    ')
-        else:
-            if value == 'f':
-                print('\'' + key + '\'', end='    ')
-            else:
-                CRED = '\033[91m'
-                CEND = '\033[0m'
-                print(CRED + '\'' + key + '\'' + CEND, end='    ')
-    print()
+                if value == 'f':
+                    print('\'' + key + '\'', end='    ')
+                else:
+                    CRED = '\033[91m'
+                    CEND = '\033[0m'
+                    print(CRED + '\'' + key + '\'' + CEND, end='    ')
+        print()
+    except Exception as e:
+        print(e)
 
 def lls(state):
     dirlist = os.listdir(state.cwd)
@@ -90,8 +93,10 @@ def get(state):
     target = state.command[4:]
     type = state.control.recv(1024).decode('ascii')
     if(type == 'file'):
+        state.control.send('200'.encode('ascii'))
         get_file(state, target)
     else:
+        state.control.send('200'.encode('ascii'))
         get_dir(state, target)
 
 def get_file(state, target):
@@ -115,6 +120,10 @@ def get_dir(state, target):
         os.chdir(target)
         dir = state.control.recv(1024).decode('ascii')
         d = json.loads(dir)
+        if(d == 'NESTED'):
+            print('The directory is nested. Operation terminated.')
+            os.chdir(cwd)
+            return
         print(str(d))
         for key, value in d.items():
             print('Attempting to receive ' + key + ' of type ' + value)
@@ -182,6 +191,9 @@ def authenticate_user(state, control_code):
             state.command = input('ftp> ')
         authenticate_user(state, 'again')
 
+def bye(state):
+    state.control.send(state.command.encode('ascii'))
+
 if __name__ == '__main__':
     global control_port
     server = "127.0.0.1"
@@ -200,6 +212,7 @@ if __name__ == '__main__':
         state.command = input('ftp> ')
         #SWITCH BASED ON COMMAND
         if(state.command == "bye"):
+            bye(state)
             break
         elif(state.command == "ls"):
             rls(state)

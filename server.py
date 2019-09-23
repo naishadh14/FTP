@@ -63,9 +63,11 @@ def get(state):
     target = state.command[4:]
     if os.path.isfile(target):
         state.control.send("file".encode('ascii'))
+        response = state.control.recv(4).decode('ascii')
         get_file(state, target)
     elif os.path.isdir(target):
         state.control.send("dir".encode('ascii'))
+        response = state.control.recv(4).decode('ascii')
         get_dir(state, target)
 
 def get_dir(state, target):
@@ -76,10 +78,12 @@ def get_dir(state, target):
         dirlist = os.scandir()
         for entry in dirlist:
             if entry.is_dir():
+                state.control.send(json.dumps('NESTED').encode('ascii'))
+                os.chdir(cwd)
+                return
                 d[entry.name] = "d"
             else:
                 d[entry.name] = "f"
-        print(str(d))
         state.control.send(json.dumps(d).encode('ascii'))
         for key, value in d.items():
             print('Attempting to transfer ' + key + ' of type ' + value)
@@ -149,32 +153,38 @@ def authenticate_user(state, control_code):
         state.control.send(str(result).encode('ascii'))
 
 def connection(state):
-    print("New connection to client {}".format(addr))
+    print("New connection to client {}".format(state.control_addr))
     state.control.send(str(pam_import).encode('ascii'))
     if pam_import == 0:
     	authenticate_user(state, 'new')
 
-    while True:
-        state.command = state.control.recv(1024).decode('ascii')
-        #SWITCH BASED ON command
-        if(state.command == "ls"):
-            ls(state)
-        elif(state.command[0:3] == "cd "):
-            cd(state)
-        elif(state.command == "pwd"):
-            pwd(state)
-        elif(state.command[0:4] == "get "):
-            get(state)
-        elif(state.command[0:6] == "mkdir "):
-            mkdir(state)
-        elif(state.command[0:3] == "rm "):
-            rm(state)
-        elif(state.command == "sys"):
-            system(state)
-        elif(state.command == "user"):
-            user(state)
+    try:
+        while True:
+            state.command = state.control.recv(1024).decode('ascii')
+            #SWITCH BASED ON command
+            if(state.command == "bye"):
+                break
+            elif(state.command == "ls"):
+                ls(state)
+            elif(state.command[0:3] == "cd "):
+                cd(state)
+            elif(state.command == "pwd"):
+                pwd(state)
+            elif(state.command[0:4] == "get "):
+                get(state)
+            elif(state.command[0:6] == "mkdir "):
+                mkdir(state)
+            elif(state.command[0:3] == "rm "):
+                rm(state)
+            elif(state.command == "sys"):
+                system(state)
+            elif(state.command == "user"):
+                user(state)
 
-    state.control.close()
+        print('Connection closed to client {}'.format(state.control_addr))
+        state.control.close()
+    except Exception as e:
+        print(e)
 
 if __name__ == '__main__':
     global control_port
