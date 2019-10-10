@@ -1,2 +1,5 @@
 Test:
+
+get_dir will make dir and then exit if dir is nested
+
 Data transfer over non local connection or error with stats code?

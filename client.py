@@ -5,6 +5,7 @@ import os
 import shutil
 import json
 import getpass
+import glob
 
 if os.name == 'nt':
     os.system('color')
@@ -18,7 +19,6 @@ class State:
         self.control = client
         self.server = server
         self.glob = False
-
 
 def rls(state):
     state.control.send("ls".encode('ascii'))
@@ -89,6 +89,56 @@ def data_connection(state):
     state.data = socket(AF_INET, SOCK_STREAM)
     state.data.connect((state.server, data_port))
 
+def put(state):
+    target = state.command[4:]
+    state.control.send(state.command.encode('ascii'))
+    response = state.control.recv(8).decode('ascii')
+    if os.path.isfile(target):
+        state.control.send("file".encode('ascii'))
+        put_file(state, target)
+    elif os.path.isdir(target):
+        state.control.send("dir".encode('ascii'))
+        put_dir(state, target)
+    else:
+        print('Target does not exist.')
+        state.control.send('201'.encode('ascii'))
+
+def put_file(state, target):
+    try:
+        data_connection(state)
+        f = open(target, 'rb+')
+        l = f.read(1024)
+        while(l):
+            state.data.send(l)
+            l = f.read(1024)
+        print('OK')
+    except Exception as e:
+        print(e)
+    finally:
+        state.data.close()
+
+def put_dir(state, target):
+    try:
+        cwd = os.getcwd()
+        os.chdir(target)
+        l = []
+        dirlist = os.scandir()
+        for entry in dirlist:
+            if entry.is_dir():
+                print('The directory is nested. Operation terminated.')
+                state.control.send(json.dumps('201').encode('ascii'))
+                os.chdir(cwd)
+                return
+            else:
+                l.append(entry.name)
+        state.control.send(json.dumps(l).encode('ascii'))
+        for target in l:
+            put_file(state, target)
+    except Exception as e:
+        print(e)
+    finally:
+        os.chdir(cwd)
+
 def get(state):
     state.control.send(state.command.encode('ascii'))
     target = state.command[4:]
@@ -119,7 +169,7 @@ def get_dir(state, target):
         cwd = os.getcwd()
         os.mkdir(target)
         os.chdir(target)
-        dir = state.control.recv(1024).decode('ascii')
+        dir = state.control.recv(2048).decode('ascii')
         d = json.loads(dir)
         if(d == 'NESTED'):
             print('The directory is nested. Operation terminated.')
@@ -139,9 +189,12 @@ def get_dir(state, target):
 
 def mget(state):
     state.control.send(state.command.encode('ascii'))
-    response = state.control.recv(1024).decode('ascii')
+    response = state.control.recv(8).decode('ascii')
     if(response == '201'):
-        print('One or more of the specified target files do not exist.\nNote: Turn on file globbing with \'glob\'')
+        print('One or more of the specified target files do not exist.\nNote: Toggle file globbing with \'glob\'')
+        return
+    elif(response == '202'):
+        print('No files matching the wildcard expression were found.\nNote: Toggle file globbing with \'glob\'')
         return
     elif(response == '200'):
         state.control.send('200'.encode('ascii'))
@@ -150,6 +203,34 @@ def mget(state):
         state.control.send('200'.encode('ascii'))
         for target in l:
             get_file(state, target)
+
+def mput(state):
+    state.control.send(state.command.encode('ascii'))
+    response = state.control.recv(8).decode('ascii')
+    targets = state.command[5:].split(" ")
+    l = []
+    if(state.glob == False):
+        for target in targets:
+            if(os.path.isfile(target)):
+                l.append(target)
+            else:
+                state.control.send('201'.encode('ascii'))
+                print('One or more of the specified target files do not exist.\nNote: Toggle file globbing with \'glob\'')
+                return
+    else:
+        for pattern in targets:
+            list = glob.glob(pattern)
+            for target in list:
+                l.append(target)
+        if(len(l) == 0):
+            state.control.send('201'.encode('ascii'))
+            print('No files matching the wildcard expression were found.\nNote: Toggle file globbing with \'glob\'')
+            return
+    state.control.send('200'.encode('ascii'))
+    response = state.control.recv(8).decode('ascii')
+    state.control.send(json.dumps(l).encode('ascii'))
+    for target in l:
+        put_file(state, target)
 
 def rmkdir(state):
     state.control.send(state.command.encode('ascii'))
@@ -267,8 +348,12 @@ if __name__ == '__main__':
             lsystem(state)
         elif(state.command[0:5] == "mget "):
             mget(state)
+        elif(state.command[0:5] == "mput "):
+            mput(state)
         elif(state.command == "glob"):
             toggle_glob(state)
+        elif(state.command == ""):
+            continue
         else:
             print("Incorrect command!")
 

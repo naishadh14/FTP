@@ -61,6 +61,48 @@ def data_connection(state):
     state.data_socket.listen(1)
     state.data, state.data_addr = state.data_socket.accept()
 
+def put(state):
+    target = state.command[4:]
+    state.control.send('200'.encode('ascii'))
+    response = state.control.recv(8).decode('ascii')
+    if(response == '201'):
+        return
+    elif(response == 'file'):
+        put_file(state, target)
+    elif(response == 'dir'):
+        put_dir(state, target)
+
+def put_file(state, target):
+    try:
+        data_connection(state)
+        f = open(target, 'wb+')
+        data = state.data.recv(1024)
+        while data:
+            f.write(data)
+            data = state.data.recv(1024)
+    except Exception as e:
+        state.data.send(str(e).encode('ascii'))
+    finally:
+        state.data.close()
+
+def put_dir(state, target):
+    try:
+        cwd = os.getcwd()
+        os.mkdir(target)
+        os.chdir(target)
+        list_files = state.control.recv(2048).decode('ascii')
+        l = json.loads(list_files)
+        if(l == '201'):
+            os.chdir(cwd)
+            return
+        else:
+            for target in l:
+                put_file(state, target)
+    except Exception as e:
+        print(e)
+    finally:
+        os.chdir(cwd)
+
 def get(state):
     target = state.command[4:]
     if os.path.isfile(target):
@@ -128,6 +170,9 @@ def mget(state):
             list = glob.glob(pattern)
             for target in list:
                 l.append(target)
+        if(len(l) == 0):
+            state.control.send('202'.encode('ascii'))
+            return
     state.control.send('200'.encode('ascii'))
     response = state.control.recv(1024).decode('ascii')
     state.control.send(json.dumps(l).encode('ascii'))
@@ -135,8 +180,18 @@ def mget(state):
     for target in l:
         get_file(state, target)
 
-def put(state):
-    pass
+def mput(state):
+    state.control.send('200'.encode('ascii'))
+    response = state.control.recv(8).decode('ascii')
+    if(response == '201'):
+        return
+    else:
+        state.control.send('200'.encode('ascii'))
+        text = state.control.recv(2048).decode('ascii')
+        l = json.loads(text)
+        for target in l:
+            put_file(state, target)
+
 
 def mkdir(state):
     target = state.command[6:]
@@ -192,6 +247,7 @@ def connection(state):
     try:
         while True:
             state.command = state.control.recv(1024).decode('ascii')
+            os.chdir(state.cwd)
             #SWITCH BASED ON command
             if(state.command == "bye"):
                 break
@@ -215,6 +271,10 @@ def connection(state):
                 mget(state)
             elif(state.command == "glob"):
                 toggle_glob(state)
+            elif(state.command[0:4] == "put "):
+                put(state)
+            elif(state.command[0:5] == "mput "):
+                mput(state)
 
         print('Connection closed to client {}'.format(state.control_addr))
         state.control.close()
