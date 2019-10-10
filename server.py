@@ -6,6 +6,7 @@ import os
 import shutil
 import json
 import getpass
+import glob
 global pam_import
 try:
     import pam
@@ -29,6 +30,7 @@ class State:
         self.data_port = control_port + count
         self.data_socket = socket(AF_INET, SOCK_STREAM)
         self.data_socket.bind(('', self.data_port))
+        self.glob = False
 
 
 def ls(state):
@@ -110,6 +112,29 @@ def get_file(state, target):
     finally:
         state.data.close()
 
+def mget(state):
+    line = state.command[5:]
+    targets = line.split(" ")
+    l = []
+    if(state.glob == False):
+        for target in targets:
+            if(os.path.isfile(target)):
+                l.append(target)
+            else:
+                state.control.send('201'.encode('ascii'))
+                return
+    else:
+        for pattern in targets:
+            list = glob.glob(pattern)
+            for target in list:
+                l.append(target)
+    state.control.send('200'.encode('ascii'))
+    response = state.control.recv(1024).decode('ascii')
+    state.control.send(json.dumps(l).encode('ascii'))
+    response = state.control.recv(1024).decode('ascii')
+    for target in l:
+        get_file(state, target)
+
 def put(state):
     pass
 
@@ -132,6 +157,12 @@ def rm(state):
             state.control.send('OK'.encode('ascii'))
     except Exception as e:
         state.control.send(str(e).encode('ascii'))
+
+def toggle_glob(state):
+    if(state.glob == True):
+        state.glob = False
+    else:
+        state.glob = True
 
 def system(state):
     state.control.send(str(sys.platform).encode('ascii'))
@@ -180,6 +211,10 @@ def connection(state):
                 system(state)
             elif(state.command == "user"):
                 user(state)
+            elif(state.command[0:5] == "mget "):
+                mget(state)
+            elif(state.command == "glob"):
+                toggle_glob(state)
 
         print('Connection closed to client {}'.format(state.control_addr))
         state.control.close()

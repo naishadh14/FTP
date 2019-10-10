@@ -17,6 +17,7 @@ class State:
         self.folder = os.path.basename(self.cwd)
         self.control = client
         self.server = server
+        self.glob = False
 
 
 def rls(state):
@@ -136,6 +137,20 @@ def get_dir(state, target):
     finally:
         os.chdir(cwd)
 
+def mget(state):
+    state.control.send(state.command.encode('ascii'))
+    response = state.control.recv(1024).decode('ascii')
+    if(response == '201'):
+        print('One or more of the specified target files do not exist.\nNote: Turn on file globbing with \'glob\'')
+        return
+    elif(response == '200'):
+        state.control.send('200'.encode('ascii'))
+        text = state.control.recv(2048).decode('ascii')
+        l = json.loads(text)
+        state.control.send('200'.encode('ascii'))
+        for target in l:
+            get_file(state, target)
+
 def rmkdir(state):
     state.control.send(state.command.encode('ascii'))
     print(state.control.recv(1024).decode('ascii'))
@@ -170,6 +185,14 @@ def rsystem(state):
 
 def lsystem(state):
     print(sys.platform)
+
+def toggle_glob(state):
+    state.control.send(state.command.encode('ascii'))
+    if(state.glob == True):
+        state.glob = False
+    else:
+        state.glob = True
+    print(state.glob)
 
 def authenticate_user(state, control_code):
     print('Welcome to FTP')
@@ -242,6 +265,10 @@ if __name__ == '__main__':
             rsystem(state)
         elif(state.command == "!sys"):
             lsystem(state)
+        elif(state.command[0:5] == "mget "):
+            mget(state)
+        elif(state.command == "glob"):
+            toggle_glob(state)
         else:
             print("Incorrect command!")
 
