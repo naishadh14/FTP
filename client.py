@@ -313,7 +313,8 @@ if __name__ == '__main__':
     	authenticate_user(state, 'new')
 
     while True:
-        state.command = input('ftp> ')
+        temp_command = input('ftp> ')
+        state.command = " ".join(temp_command.split())
         #SWITCH BASED ON COMMAND
         if(state.command == "bye"):
             bye(state)
