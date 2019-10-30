@@ -316,13 +316,18 @@ if __name__ == '__main__':
         temp_command = input('ftp> ')
         state.command = " ".join(temp_command.split())
         #SWITCH BASED ON COMMAND
-        if(state.command == "bye"):
+        if(state.command == "bye" or state.command == "close" or state.command == "disconnect" or state.command == "quit"):
             bye(state)
             break
         elif(state.command == "ls"):
             rls(state)
+        elif (state.command == "dir"):
+            rls(state)
         elif(state.command == "!ls"):
             lls(state)
+        elif(state.command == "cdup"):
+            state.command = "cd .."
+            rcd(state)
         elif(state.command[0:3] == "cd "):
             rcd(state)
         elif(state.command[0:4] == "!cd "):
