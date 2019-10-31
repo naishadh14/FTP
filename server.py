@@ -114,6 +114,18 @@ def get(state):
         response = state.control.recv(4).decode('ascii')
         get_dir(state, target)
 
+def rename(state):
+    target = state.command.split()
+    if os.path.isfile(target[1]):
+        if os.path.isfile(target[2]):
+            state.control.send("file2exist".encode('ascii'))
+        else:
+            os.renames(target[1], target[2])
+            state.control.send("success".encode('ascii'))
+    else:
+        state.control.send("!file1".encode('ascii'))
+
+
 def get_dir(state, target):
     try:
         cwd = os.getcwd()
@@ -271,6 +283,8 @@ def connection(state):
                 mget(state)
             elif(state.command == "glob"):
                 toggle_glob(state)
+            elif (state.command[0:7] == "rename "):
+                rename(state)
             elif(state.command[0:4] == "put "):
                 put(state)
             elif(state.command[0:5] == "mput "):

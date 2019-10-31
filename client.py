@@ -139,6 +139,16 @@ def put_dir(state, target):
     finally:
         os.chdir(cwd)
 
+def rename(state):
+    state.control.send(state.command.encode('ascii'))
+    response = state.control.recv(1024).decode('ascii')
+    if(response == "file2exist"):
+        print("File with same name exists. Unsuccessful")
+    elif(response == "!file1"):
+        print("File 1 does not exist.")
+    elif(response == "success"):
+        print("OK")
+
 def get(state):
     state.control.send(state.command.encode('ascii'))
     target = state.command[4:]
@@ -358,6 +368,8 @@ if __name__ == '__main__':
             mput(state)
         elif(state.command == "glob"):
             toggle_glob(state)
+        elif(state.command[0:7] == "rename "):
+            rename(state)
         elif(state.command == ""):
             continue
         else:
