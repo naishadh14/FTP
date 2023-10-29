@@ -51,3 +51,51 @@ sys: Print system running on server
 !sys: Print system running on client
 user: Authenticating user (username, and password)
 ```
+
+## Implementation
+
+We have adhered to RFC 959 as much as possible. A control connection is used for command executions & a separate data port is implicitly used (without explicit port coding) to transfer files. 
+
+Here is a high level overview of how the client & server are structured.
+
+```
+client {
+    opens TCP connection
+    loop {
+        show prompt;
+        read command; //interpretation
+        switch(command) {
+            "ls":
+                sends ls to server
+                receives response code and Data
+                shows on client screen
+            "get filename":
+                extract filename from args;
+                Open new data connection
+                send get and filename on data connection
+                //Where to send filename? Control or data connection?
+        }
+    }
+}
+
+server {
+    binds to listen port //20
+    listen;
+    accept
+    spawn thread
+    thread {
+        waiting for data(command)
+        switch(command) {
+            LS: runs the local ls() function //LS is the macro
+                d = readdir() //d  is array of dir entries
+                convert d to string
+                write string to control connection
+            GET:
+                //Who will open data connection?
+                Open new tcp connection for file transfer
+                read file, send file on this connection
+                close connection
+        }
+    }
+}
+```
